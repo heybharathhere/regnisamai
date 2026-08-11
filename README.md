@@ -1,0 +1,2 @@
+# regnisamai
+offline app
