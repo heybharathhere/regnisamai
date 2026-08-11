@@ -1,2 +1,2 @@
 # regnisamai
-offline app
+offline app fantastic 
