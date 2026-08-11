@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reverse Singer</title>
+<meta name="theme-color" content="#1B1815">
+<meta name="description" content="Record your voice, then hear it forwards and backwards.">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Space+Mono:wght@400;700&display=swap');
+
+  :root{
+    --ink:#1B1815;
+    --panel:#231F1B;
+    --paper:#F3EEE3;
+    --tape:#D8CBB3;
+    --amber:#E3963E;
+    --rust:#C1432E;
+    --amber-dim:#8a5c26;
+    --rust-dim:#7a2c1f;
+  }
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Space Mono', monospace;
+    overscroll-behavior:none;
+  }
+
+  body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    padding:24px;
+  }
+
+  .deck{
+    width:100%;
+    max-width:420px;
+  }
+
+  .eyebrow{
+    font-size:12px;
+    letter-spacing:0.28em;
+    text-transform:uppercase;
+    color:var(--tape);
+    opacity:0.65;
+    margin:0 0 6px 2px;
+  }
+
+  h1{
+    font-family:'Big Shoulders Display', sans-serif;
+    font-weight:900;
+    font-size:clamp(38px, 10vw, 54px);
+    line-height:0.92;
+    letter-spacing:-0.01em;
+    margin:0 0 20px 0;
+    text-transform:uppercase;
+    color:var(--paper);
+  }
+  h1 span{ color:var(--amber); }
+
+  .cassette{
+    background:var(--panel);
+    border:2px solid #35302a;
+    border-radius:18px;
+    padding:28px 22px 22px;
+    position:relative;
+    box-shadow: inset 0 0 0 1px rgba(216,203,179,0.05), 0 20px 40px -20px rgba(0,0,0,0.6);
+  }
+
+  .reels{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 8px;
+    margin-bottom:22px;
+  }
+
+  .reel{
+    width:92px; height:92px;
+    border-radius:50%;
+    border:3px solid var(--amber-dim);
+    display:flex; align-items:center; justify-content:center;
+    position:relative;
+    transition:border-color .3s ease;
+  }
+  .reel.right{ border-color:var(--rust-dim); }
+
+  .reel .hub{
+    width:30px; height:30px;
+    border-radius:50%;
+    background:var(--amber-dim);
+    transition:background .3s ease;
+  }
+  .reel.right .hub{ background:var(--rust-dim); }
+
+  .reel::before{
+    content:'';
+    position:absolute; inset:-3px;
+    border-radius:50%;
+    border:3px dashed transparent;
+  }
+
+  .reel.spin{ animation:spin 1.8s linear infinite; }
+  .reel.spin.left{ border-color:var(--amber); }
+  .reel.spin.left .hub{ background:var(--amber); }
+  .reel.spin.right{ border-color:var(--rust); }
+  .reel.spin.right .hub{ background:var(--rust); }
+  .reel.spin-rev{ animation:spin-rev 1.8s linear infinite; }
+
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  @keyframes spin-rev{ to{ transform:rotate(-360deg); } }
+
+  .tape-line{
+    flex:1;
+    height:2px;
+    background:var(--tape);
+    opacity:0.35;
+    margin:0 10px;
+  }
+
+  .window{
+    background:#141210;
+    border-radius:8px;
+    padding:10px 14px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+    border:1px solid #35302a;
+  }
+
+  .counter{
+    font-size:22px;
+    letter-spacing:0.05em;
+    color:var(--amber);
+    font-weight:700;
+  }
+
+  .status{
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--tape);
+    opacity:0.7;
+  }
+
+  .wave{
+    height:44px;
+    display:flex;
+    align-items:center;
+    gap:2px;
+    margin-bottom:20px;
+    padding:0 2px;
+  }
+  .wave .bar{
+    flex:1;
+    background:var(--tape);
+    opacity:0.25;
+    border-radius:2px;
+    min-height:3px;
+    transition:opacity .2s ease;
+  }
+  .wave .bar.active{ opacity:1; background:var(--amber); }
+  .wave .bar.active.rev{ background:var(--rust); }
+
+  .controls{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+
+  button{
+    font-family:'Space Mono', monospace;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    border:none;
+    border-radius:10px;
+    padding:16px 10px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    transition:transform .08s ease, filter .15s ease, opacity .15s ease;
+    color:var(--ink);
+  }
+  button:active{ transform:scale(0.96); }
+  button:disabled{ opacity:0.3; cursor:not-allowed; }
+  button:disabled:active{ transform:none; }
+
+  .btn-rec{ background:var(--rust); grid-column:1 / 2; }
+  .btn-stop{ background:var(--tape); grid-column:2 / 3; }
+  .btn-orig{ background:var(--amber); grid-column:1 / 3; }
+  .btn-rev{ background:var(--rust); grid-column:1 / 3; }
+
+  .dot{
+    width:9px; height:9px; border-radius:50%;
+    background:var(--ink);
+    display:inline-block;
+  }
+  .btn-rec.recording .dot{ animation:pulse 1s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.25;} }
+
+  .footer-note{
+    text-align:center;
+    font-size:11px;
+    color:var(--tape);
+    opacity:0.45;
+    margin-top:18px;
+    letter-spacing:0.04em;
+  }
+
+  .hint{
+    text-align:center;
+    font-size:12px;
+    color:var(--tape);
+    opacity:0.6;
+    margin-top:14px;
+    min-height:16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="deck">
+  <p class="eyebrow">Record &rarr; flip &rarr; play</p>
+  <h1>Reverse<br><span>Singer</span></h1>
+
+  <div class="cassette">
+    <div class="reels">
+      <div class="reel left" id="reelLeft"><div class="hub"></div></div>
+      <div class="tape-line"></div>
+      <div class="reel right" id="reelRight"><div class="hub"></div></div>
+    </div>
+
+    <div class="window">
+      <span class="counter" id="counter">00:00.0</span>
+      <span class="status" id="status">Ready</span>
+    </div>
+
+    <div class="wave" id="wave"></div>
+
+    <div class="controls">
+      <button class="btn-rec" id="btnRec">
+        <span class="dot"></span> Record
+      </button>
+      <button class="btn-stop" id="btnStop" disabled>Stop</button>
+      <button class="btn-orig" id="btnOrig" disabled>&#9654; Play Original</button>
+      <button class="btn-rev" id="btnRev" disabled>&#9664; Play Reversed</button>
+    </div>
+  </div>
+
+  <p class="hint" id="hint">Tap Record, sing a few seconds, then Stop.</p>
+  <p class="footer-note">Works fully offline once installed &mdash; nothing leaves your phone.</p>
+</div>
+
+<script>
+(function(){
+  const btnRec = document.getElementById('btnRec');
+  const btnStop = document.getElementById('btnStop');
+  const btnOrig = document.getElementById('btnOrig');
+  const btnRev = document.getElementById('btnRev');
+  const counter = document.getElementById('counter');
+  const statusEl = document.getElementById('status');
+  const hint = document.getElementById('hint');
+  const reelLeft = document.getElementById('reelLeft');
+  const reelRight = document.getElementById('reelRight');
+  const waveEl = document.getElementById('wave');
+
+  const BAR_COUNT = 48;
+  for(let i=0;i<BAR_COUNT;i++){
+    const b = document.createElement('div');
+    b.className = 'bar';
+    waveEl.appendChild(b);
+  }
+  const bars = Array.from(waveEl.children);
+
+  let audioCtx = null;
+  let mediaRecorder = null;
+  let chunks = [];
+  let originalBuffer = null;   // AudioBuffer
+  let reversedBuffer = null;   // AudioBuffer
+  let recordStart = 0;
+  let timerId = null;
+  let currentSource = null;
+  let stream = null;
+
+  function fmtTime(sec){
+    const m = Math.floor(sec/60).toString().padStart(2,'0');
+    const s = (sec%60).toFixed(1).padStart(4,'0');
+    return `${m}:${s}`;
+  }
+
+  function setStatus(text){ statusEl.textContent = text; }
+  function setHint(text){ hint.textContent = text; }
+
+  function stopReels(){
+    reelLeft.classList.remove('spin','spin-rev');
+    reelRight.classList.remove('spin','spin-rev');
+  }
+  function spinForward(){
+    stopReels();
+    reelLeft.classList.add('spin','left');
+    reelRight.classList.add('spin','right');
+  }
+  function spinReverse(){
+    stopReels();
+    reelLeft.classList.add('spin-rev','left');
+    reelRight.classList.add('spin-rev','right');
+  }
+
+  function paintWaveIdle(buffer){
+    if(!buffer){
+      bars.forEach(b=>{ b.style.height='4px'; b.classList.remove('active','rev'); });
+      return;
+    }
+    const data = buffer.getChannelData(0);
+    const step = Math.floor(data.length / BAR_COUNT) || 1;
+    for(let i=0;i<BAR_COUNT;i++){
+      let max=0;
+      for(let j=0;j<step;j++){
+        const idx = i*step+j;
+        if(idx<data.length){ const v=Math.abs(data[idx]); if(v>max) max=v; }
+      }
+      bars[i].style.height = Math.max(3, Math.round(max*40)) + 'px';
+      bars[i].classList.remove('active','rev');
+    }
+  }
+
+  function animatePlayback(durationSec, reversed){
+    const start = performance.now();
+    function frame(now){
+      const elapsed = (now-start)/1000;
+      const progress = Math.min(1, elapsed/durationSec);
+      const activeCount = Math.floor(progress * BAR_COUNT);
+      bars.forEach((b,i)=>{
+        const on = reversed ? (i >= BAR_COUNT-activeCount) : (i <= activeCount);
+        b.classList.toggle('active', on);
+        b.classList.toggle('rev', reversed);
+      });
+      counter.textContent = fmtTime(elapsed);
+      if(progress < 1 && currentSource){
+        requestAnimationFrame(frame);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  async function initAudioCtx(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if(audioCtx.state === 'suspended'){
+      await audioCtx.resume();
+    }
+  }
+
+  async function startRecording(){
+    try{
+      await initAudioCtx();
+      stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    }catch(err){
+      setHint('Microphone access is needed to record.');
+      return;
+    }
+
+    chunks = [];
+    const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
+                 (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '');
+    mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
+    mediaRecorder.onstop = onRecordingStopped;
+
+    mediaRecorder.start();
+    recordStart = performance.now();
+
+    btnRec.classList.add('recording');
+    btnRec.disabled = true;
+    btnStop.disabled = false;
+    btnOrig.disabled = true;
+    btnRev.disabled = true;
+    setStatus('Recording');
+    setHint('Sing! Tap Stop when done.');
+    spinForward();
+
+    timerId = setInterval(()=>{
+      counter.textContent = fmtTime((performance.now()-recordStart)/1000);
+    }, 100);
+  }
+
+  function stopRecording(){
+    if(mediaRecorder && mediaRecorder.state !== 'inactive'){
+      mediaRecorder.stop();
+    }
+    if(stream){
+      stream.getTracks().forEach(t=>t.stop());
+    }
+    clearInterval(timerId);
+    stopReels();
+    btnRec.classList.remove('recording');
+    btnStop.disabled = true;
+    setStatus('Processing');
+  }
+
+  async function onRecordingStopped(){
+    const blob = new Blob(chunks, { type: chunks[0]?.type || 'audio/webm' });
+    const arrayBuffer = await blob.arrayBuffer();
+    try{
+      originalBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    }catch(err){
+      setStatus('Ready');
+      setHint('Could not process that recording — try again.');
+      btnRec.disabled = false;
+      return;
+    }
+    reversedBuffer = reverseBuffer(originalBuffer);
+
+    btnRec.disabled = false;
+    btnOrig.disabled = false;
+    btnRev.disabled = false;
+    setStatus('Ready');
+    counter.textContent = fmtTime(originalBuffer.duration);
+    setHint('Play it forwards, or flip it in reverse.');
+    paintWaveIdle(originalBuffer);
+  }
+
+  function reverseBuffer(buffer){
+    const rev = audioCtx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+    for(let ch=0; ch<buffer.numberOfChannels; ch++){
+      const src = buffer.getChannelData(ch);
+      const dst = rev.getChannelData(ch);
+      for(let i=0, j=src.length-1; i<src.length; i++, j--){
+        dst[i] = src[j];
+      }
+    }
+    return rev;
+  }
+
+  function stopPlayback(){
+    if(currentSource){
+      try{ currentSource.onended = null; currentSource.stop(); }catch(e){}
+      currentSource = null;
+    }
+  }
+
+  async function play(buffer, reversed){
+    await initAudioCtx();
+    stopPlayback();
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    currentSource = source;
+
+    btnOrig.disabled = true;
+    btnRev.disabled = true;
+    setStatus(reversed ? 'Playing reversed' : 'Playing original');
+    reversed ? spinReverse() : spinForward();
+    animatePlayback(buffer.duration, reversed);
+
+    source.onended = () => {
+      if(currentSource !== source) return;
+      currentSource = null;
+      stopReels();
+      btnOrig.disabled = false;
+      btnRev.disabled = false;
+      setStatus('Ready');
+      counter.textContent = fmtTime(buffer.duration);
+      paintWaveIdle(originalBuffer);
+    };
+    source.start();
+  }
+
+  btnRec.addEventListener('click', startRecording);
+  btnStop.addEventListener('click', stopRecording);
+  btnOrig.addEventListener('click', ()=> play(originalBuffer, false));
+  btnRev.addEventListener('click', ()=> play(reversedBuffer, true));
+
+  paintWaveIdle(null);
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    });
+  }
+})();
+</script>
+</body>
+</html>
