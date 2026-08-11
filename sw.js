@@ -1,10 +1,17 @@
-const CACHE_NAME = 'reverse-singer-v1';
+const CACHE_NAME = 'reverse-singer-v2';
 const ASSETS = [
   './',
   './index.html',
+  './terms.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './avatar-1.png',
+  './avatar-2.png',
+  './avatar-3.png',
+  './avatar-4.png',
+  './avatar-5.png',
+  './avatar-6.png'
 ];
 
 self.addEventListener('install', (event) => {

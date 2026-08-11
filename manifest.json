@@ -1,6 +1,6 @@
 {
-  "name": "Reverse Singer",
-  "short_name": "Reverse Singer",
+  "name": "Regnisamai — Reverse Singer",
+  "short_name": "Regnisamai",
   "description": "Record your voice, then hear it forwards and backwards.",
   "start_url": "./index.html",
   "scope": "./",
