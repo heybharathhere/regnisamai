@@ -920,6 +920,17 @@
     renderHistory();
   }
 
+  function resetApp(){
+    // wipe every regnisamai.* key — name, avatar, theme, history, tutorial
+    // flag, everything — then reload straight into onboarding. This is a
+    // reliable reset regardless of how the OS/browser partitions site
+    // storage for an installed PWA vs. a regular tab.
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('regnisamai.'))
+      .forEach(k => localStorage.removeItem(k));
+    location.reload();
+  }
+
   renderHistory();
 
   //
@@ -1068,11 +1079,12 @@
     terms:    { label:'Privacy Policy', sub:'', type:'nav', view:'terms', title:'Privacy Policy' },
     credits:  { label:'Credits', sub:'', type:'nav', view:'credits', title:'Credits' },
     click:    { label:'Click sound', sub:'Mechanical click on press', type:'toggle' },
-    clear:    { label:'Clear history', sub:'Removes all saved takes', type:'action' },
+    clear:    { label:'Clear history', sub:'Removes all saved takes', type:'action', action:'clear' },
+    reset:    { label:'Reset app', sub:'Erase everything and start fresh', type:'action', action:'reset' },
     about:    { label:'About / Version', sub:'', type:'nav', view:'about', title:'About' }
   };
   // Fixed order — not user-reorderable.
-  const SETTINGS_ORDER = ['profile','theme','tutorial','terms','credits','click','clear','about'];
+  const SETTINGS_ORDER = ['profile','theme','tutorial','terms','credits','click','clear','reset','about'];
 
   function renderSettingsList(){
     const listEl = document.getElementById('settingsList');
@@ -1102,7 +1114,11 @@
         right.appendChild(toggle);
       } else if(def.type === 'action'){
         main.addEventListener('click', ()=>{
-          showConfirm('Clear history?', "This removes all saved takes. It can't be undone.", clearAllHistory);
+          if(def.action === 'reset'){
+            showConfirm('Reset app?', "Erases your name, avatar, theme, and all saved takes — like installing it fresh. This can't be undone.", resetApp);
+          } else {
+            showConfirm('Clear history?', "This removes all saved takes. It can't be undone.", clearAllHistory);
+          }
         });
         item.style.cursor = 'pointer';
       } else {
