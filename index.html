@@ -195,6 +195,18 @@
   .tut-btn{ font-family:'Space Mono', monospace; font-size:12px; text-transform:uppercase; letter-spacing:0.06em; padding:10px 18px; border-radius:20px; border:none; cursor:pointer; }
   .tut-skip{ background:transparent; color:var(--tape); border:1px solid #4a433a; }
   .tut-next{ background:var(--amber); color:var(--ink); font-weight:700; }
+
+  /* themed confirm dialog (replaces the native browser confirm()) */
+  .confirm-overlay{ position:fixed; inset:0; z-index:90; background:rgba(10,9,7,0.75); display:flex; align-items:center; justify-content:center; padding:28px; opacity:0; pointer-events:none; transition:opacity .2s ease; }
+  .confirm-overlay.open{ opacity:1; pointer-events:auto; }
+  .confirm-card{ background:var(--panel); border:2px solid var(--key-shadow); border-radius:16px; padding:22px 20px; width:100%; max-width:300px; text-align:center; transform:scale(0.94); transition:transform .2s ease; }
+  .confirm-overlay.open .confirm-card{ transform:scale(1); }
+  .confirm-title{ font-family:'Big Shoulders Display', sans-serif; font-weight:900; font-size:19px; text-transform:uppercase; color:var(--rust); margin-bottom:8px; }
+  .confirm-body{ font-size:13px; color:var(--tape); line-height:1.5; margin-bottom:20px; }
+  .confirm-actions{ display:flex; gap:10px; }
+  .confirm-btn{ flex:1; padding:12px; border-radius:8px; font-family:'Space Mono', monospace; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.05em; border:none; cursor:pointer; }
+  .confirm-cancel{ background:var(--key-shadow); color:var(--paper); }
+  .confirm-ok{ background:var(--rust-dim); color:var(--paper); }
 </style>
 </head>
 <body>
@@ -366,6 +378,18 @@
   </div>
 </div>
 
+<!-- Themed confirm dialog (replaces native browser confirm()) -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-card">
+    <div class="confirm-title" id="confirmTitle">Clear history?</div>
+    <div class="confirm-body" id="confirmBody">This removes all saved takes. It can't be undone.</div>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-cancel" id="confirmCancelBtn">Cancel</button>
+      <button class="confirm-btn confirm-ok" id="confirmOkBtn">Clear</button>
+    </div>
+  </div>
+</div>
+
 <script src="pro-features.js"></script>
 <script>
 (function(){
@@ -382,6 +406,26 @@
     localStorage.setItem('regnisamai.theme', id);
   }
   applyTheme(localStorage.getItem('regnisamai.theme') || 'amber');
+
+  //
+  // ---------- themed confirm dialog ----------
+  //
+  const confirmOverlay = document.getElementById('confirmOverlay');
+  const confirmTitle = document.getElementById('confirmTitle');
+  const confirmBody = document.getElementById('confirmBody');
+  const confirmOkBtn = document.getElementById('confirmOkBtn');
+  const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+  let confirmResolve = null;
+  function showConfirm(title, body, onConfirm){
+    confirmTitle.textContent = title;
+    confirmBody.textContent = body;
+    confirmOverlay.classList.add('open');
+    confirmResolve = onConfirm;
+  }
+  function hideConfirm(){ confirmOverlay.classList.remove('open'); confirmResolve = null; }
+  confirmOkBtn.addEventListener('click', ()=>{ const fn = confirmResolve; hideConfirm(); if(fn) fn(); });
+  confirmCancelBtn.addEventListener('click', hideConfirm);
+  confirmOverlay.addEventListener('click', (e)=>{ if(e.target===confirmOverlay) hideConfirm(); });
 
   //
   // ---------- element refs ----------
@@ -439,7 +483,7 @@
   let reversedBuffer = null;
   let stream = null;
 
-  let state = 'idle'; // idle | recording | playing-fwd | playing-rev | paused-fwd | paused-rev
+  let state = 'idle'; // idle | starting | recording | playing-fwd | playing-rev | paused-fwd | paused-rev
   let currentSource = null;
   let playOffset = 0;
   let playStartCtxTime = 0;
@@ -498,6 +542,10 @@
       setStatus('Ready');
       tapeTrack.classList.add('tape-halt');
       if(originalBuffer){ btnPlay.disabled = false; btnRev.disabled = false; }
+    } else if(state === 'starting'){
+      setStatus('Starting…');
+      btnRec.disabled = true; btnStop.disabled = false;
+      tapeTrack.classList.add('tape-halt');
     } else if(state === 'recording'){
       setStatus('Recording');
       btnRec.classList.add('active'); btnRec.disabled = true; btnStop.disabled = false;
@@ -565,12 +613,33 @@
     return rev;
   }
 
+  let pendingCancel = false;
+  let stopping = false;
+
   async function startRecording(){
+    // guard: ignore taps while anything is already mid-flight (fixes the
+    // rapid rec→stop race that left the timer running with no way to stop it)
+    if(state !== 'idle') return;
+    pendingCancel = false;
+    state = 'starting'; syncUI();
     await clickFor(btnRec);
     try{
       await initAudioCtx();
       stream = await navigator.mediaDevices.getUserMedia({ audio:true });
-    }catch(err){ setHint('Microphone access is needed to record.'); return; }
+    }catch(err){
+      state = 'idle'; syncUI();
+      setHint('Microphone access is needed to record.');
+      return;
+    }
+    if(pendingCancel){
+      // Stop was tapped while the mic permission/setup was still in flight —
+      // tear down cleanly instead of starting a "phantom" recording.
+      stream.getTracks().forEach(t=>t.stop());
+      stream = null;
+      pendingCancel = false;
+      state = 'idle'; syncUI();
+      return;
+    }
     chunks = [];
     const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
                  (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '');
@@ -581,17 +650,30 @@
     recordStart = performance.now();
     state = 'recording'; syncUI();
     setHint('Sing! Tap Stop when done.');
+    if(timerId) clearInterval(timerId);
     timerId = setInterval(()=>{ counter.textContent = fmtTime((performance.now()-recordStart)/1000); }, 100);
   }
 
   function stopRecording(){
+    if(state === 'starting'){
+      // cancel the in-flight start rather than falling through to
+      // stopPlaybackFully() and leaving startRecording() to finish unseen
+      pendingCancel = true;
+      btnStop.disabled = true;
+      setStatus('Stopping…');
+      return;
+    }
+    if(state !== 'recording' || stopping) return;
+    stopping = true;
+    btnRec.disabled = true; btnStop.disabled = true; // block re-taps until onstop fires
     if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
     if(stream) stream.getTracks().forEach(t=>t.stop());
-    clearInterval(timerId);
+    if(timerId){ clearInterval(timerId); timerId = null; }
     setStatus('Processing');
   }
 
   async function onRecordingStopped(){
+    stopping = false;
     const blob = new Blob(chunks, { type: chunks[0]?.type || 'audio/webm' });
     const arrayBuffer = await blob.arrayBuffer();
     try{ originalBuffer = await audioCtx.decodeAudioData(arrayBuffer); }
@@ -666,7 +748,11 @@
   }
 
   btnRec.addEventListener('click', ()=>{ startRecording(); });
-  btnStop.addEventListener('click', async ()=>{ await clickFor(btnStop); if(state==='recording') stopRecording(); else stopPlaybackFully(); });
+  btnStop.addEventListener('click', async ()=>{
+    await clickFor(btnStop);
+    if(state==='recording' || state==='starting') stopRecording();
+    else stopPlaybackFully();
+  });
   btnPlay.addEventListener('click', async ()=>{ await clickFor(btnPlay); resumePlayback(false); });
   btnRev.addEventListener('click', async ()=>{ await clickFor(btnRev); resumePlayback(true); });
   btnPause.addEventListener('click', async ()=>{ await clickFor(btnPause); pausePlayback(); });
@@ -972,7 +1058,7 @@
         right.appendChild(toggle);
       } else if(def.type === 'action'){
         main.addEventListener('click', ()=>{
-          if(confirm('Clear all saved takes? This can\'t be undone.')) clearAllHistory();
+          showConfirm('Clear history?', "This removes all saved takes. It can't be undone.", clearAllHistory);
         });
         item.style.cursor = 'pointer';
       } else {
