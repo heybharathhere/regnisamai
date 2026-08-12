@@ -115,6 +115,7 @@
   .vari-group{ display:flex; align-items:center; gap:8px; }
 
   .footer-note{ text-align:center; font-size:11px; color:var(--tape); opacity:0.45; margin-top:18px; letter-spacing:0.04em; }
+  .footer-copyright{ text-align:center; font-size:10px; color:var(--tape); opacity:0.3; margin-top:6px; letter-spacing:0.03em; }
   .hint{ text-align:center; font-size:12px; color:var(--tape); opacity:0.6; margin-top:14px; min-height:16px; }
 
   .history{ margin-top:22px; }
@@ -219,7 +220,7 @@
       <p class="subtitle">Reverse Singer</p>
     </div>
     <button class="profile-btn" id="btnSettings" aria-label="Profile & settings" data-tut="settings">
-      <img id="profileAvatarImg" src="avatar-1.png" alt="Your avatar" />
+      <img id="profileAvatarImg" src="avatars/avatar-1.png" alt="Your avatar" />
     </button>
   </div>
 
@@ -294,6 +295,7 @@
   </div>
 
   <p class="footer-note" id="footerTag">Side A: you. Side B: you, backwards.</p>
+  <p class="footer-copyright">© Copyrighted 2026. Bobby Chan</p>
 </div>
 
 <!-- Settings sheet -->
@@ -340,6 +342,10 @@
     <div class="detail-view" id="viewCredits">
       <p class="credits-line">Idea, design direction &amp; testing — Bharath</p>
       <p class="credits-sub">Built with Claude</p>
+      <p class="credits-line" style="margin-top:18px;">Contact</p>
+      <p class="credits-sub"><a href="https://github.com/heybharathhere" target="_blank" style="color:var(--amber); text-decoration:none;">GitHub — heybharathhere</a></p>
+      <p class="credits-sub"><a href="https://instagram.com/itsmebobbychan" target="_blank" style="color:var(--amber); text-decoration:none;">Instagram — @itsmebobbychan</a></p>
+      <p class="credits-sub"><a href="mailto:itsmebobbychan@gmail.com" style="color:var(--amber); text-decoration:none;">itsmebobbychan@gmail.com</a></p>
     </div>
 
     <div class="detail-view" id="viewAbout">
@@ -918,8 +924,28 @@
 
   //
   // ---------- avatars / filmstrip ----------
+  // Avatars live in /avatars/. The list itself comes from
+  // /avatars/manifest.json at runtime — to add more, drop a PNG in that
+  // folder and add its filename to the manifest. No code changes needed.
+  // (A true directory listing isn't possible from a static host without a
+  // server, so the manifest is the dynamic part — everything downstream
+  // of it just reads however many entries are in there.)
   //
-  const AVATARS = ['avatar-1.png','avatar-2.png','avatar-3.png','avatar-4.png','avatar-5.png','avatar-6.png','avatar-7.png','avatar-8.png'];
+  const AVATAR_DIR = 'avatars/';
+  const FALLBACK_AVATARS = ['avatar-1.png','avatar-2.png','avatar-3.png','avatar-4.png','avatar-5.png','avatar-6.png','avatar-7.png','avatar-8.png'];
+  let AVATARS = FALLBACK_AVATARS.slice();
+
+  async function loadAvatarManifest(){
+    try{
+      const res = await fetch(AVATAR_DIR + 'manifest.json');
+      const data = await res.json();
+      if(Array.isArray(data.avatars) && data.avatars.length) AVATARS = data.avatars;
+    }catch(e){
+      // offline on first-ever load, or manifest missing — fall back to the
+      // built-in list so onboarding still works
+      AVATARS = FALLBACK_AVATARS.slice();
+    }
+  }
 
   function buildFilmstrip(container, onSettle){
     container.innerHTML = '';
@@ -927,7 +953,7 @@
       const frame = document.createElement('div');
       frame.className = 'avatar-frame';
       frame.dataset.src = src;
-      frame.innerHTML = `<img src="${src}" alt="avatar option">`;
+      frame.innerHTML = `<img src="${AVATAR_DIR}${src}" alt="avatar option">`;
       container.appendChild(frame);
     });
     let raf = null;
@@ -956,19 +982,40 @@
     }, refresh: updateCentered };
   }
 
+  const profileAvatarImg = document.getElementById('profileAvatarImg');
+  function refreshProfileAvatar(){
+    profileAvatarImg.src = AVATAR_DIR + (localStorage.getItem('regnisamai.avatar') || AVATARS[0]);
+  }
+
   //
-  // ---------- onboarding ----------
+  // ---------- onboarding + profile avatar (deferred until manifest loads) ----------
   //
   const onboardOverlay = document.getElementById('onboardOverlay');
   const onboardName = document.getElementById('onboardName');
   let onboardSelectedAvatar = AVATARS[0];
-  const onboardStrip = buildFilmstrip(document.getElementById('filmstripOnboard'), (src)=>{ onboardSelectedAvatar = src; });
+  let onboardStrip = null;
+  let settingsSelectedAvatar = localStorage.getItem('regnisamai.avatar') || AVATARS[0];
+  let settingsStrip = null;
 
-  const profileAvatarImg = document.getElementById('profileAvatarImg');
-  function refreshProfileAvatar(){
-    profileAvatarImg.src = localStorage.getItem('regnisamai.avatar') || AVATARS[0];
+  async function initAvatarUI(){
+    await loadAvatarManifest();
+    onboardSelectedAvatar = AVATARS[0];
+    settingsSelectedAvatar = localStorage.getItem('regnisamai.avatar') || AVATARS[0];
+
+    onboardStrip = buildFilmstrip(document.getElementById('filmstripOnboard'), (src)=>{ onboardSelectedAvatar = src; });
+    settingsStrip = buildFilmstrip(document.getElementById('filmstripSettings'), (src)=>{
+      settingsSelectedAvatar = src;
+      localStorage.setItem('regnisamai.avatar', src);
+      refreshProfileAvatar();
+    });
+
+    refreshProfileAvatar();
+
+    if(localStorage.getItem('regnisamai.onboardingDone') !== 'true'){
+      onboardOverlay.classList.add('open');
+      setTimeout(()=> onboardStrip.refresh(), 50);
+    }
   }
-  refreshProfileAvatar();
 
   document.getElementById('onboardGo').addEventListener('click', ()=>{
     localStorage.setItem('regnisamai.name', onboardName.value || '');
@@ -979,10 +1026,7 @@
     setTimeout(startTutorial, 500);
   });
 
-  if(localStorage.getItem('regnisamai.onboardingDone') !== 'true'){
-    onboardOverlay.classList.add('open');
-    setTimeout(()=> onboardStrip.refresh(), 50);
-  }
+  initAvatarUI();
 
   //
   // ---------- settings: list + detail navigation ----------
@@ -1081,12 +1125,8 @@
   const profileName = document.getElementById('profileName');
   profileName.value = localStorage.getItem('regnisamai.name') || '';
   profileName.addEventListener('input', ()=> localStorage.setItem('regnisamai.name', profileName.value));
-  let settingsSelectedAvatar = localStorage.getItem('regnisamai.avatar') || AVATARS[0];
-  const settingsStrip = buildFilmstrip(document.getElementById('filmstripSettings'), (src)=>{
-    settingsSelectedAvatar = src;
-    localStorage.setItem('regnisamai.avatar', src);
-    refreshProfileAvatar();
-  });
+  // settingsSelectedAvatar / settingsStrip are set up in initAvatarUI() above,
+  // once the avatar manifest has loaded.
 
   // theme detail view
   const themeGrid = document.getElementById('themeGrid');
@@ -1170,3 +1210,8 @@
 </script>
 </body>
 </html>
+<!--
+  Regnisamai — Reverse Singer
+  © Copyrighted 2026. Bobby Chan. All rights reserved.
+  See LICENSE for reuse terms.
+-->

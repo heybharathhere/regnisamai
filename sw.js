@@ -1,8 +1,9 @@
 // Regnisamai service worker.
-// HTML documents: network-first (falls back to cache when offline) so a
-// fresh deploy is never masked by a stale cached page. Static assets
-// (icons, avatars, manifest, script): cache-first for speed offline.
-const CACHE_NAME = 'regnisamai-v4';
+// HTML documents + the avatar manifest: network-first (falls back to cache
+// when offline), so a fresh deploy — or a newly added avatar — is never
+// masked by a stale cache. Everything else (icons, avatar images, app
+// script): cache-first for speed offline.
+const CACHE_NAME = 'regnisamai-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -11,14 +12,15 @@ const ASSETS = [
   './pro-features.js',
   './icon-192.png',
   './icon-512.png',
-  './avatar-1.png',
-  './avatar-2.png',
-  './avatar-3.png',
-  './avatar-4.png',
-  './avatar-5.png',
-  './avatar-6.png',
-  './avatar-7.png',
-  './avatar-8.png'
+  './avatars/manifest.json',
+  './avatars/avatar-1.png',
+  './avatars/avatar-2.png',
+  './avatars/avatar-3.png',
+  './avatars/avatar-4.png',
+  './avatars/avatar-5.png',
+  './avatars/avatar-6.png',
+  './avatars/avatar-7.png',
+  './avatars/avatar-8.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -38,11 +40,18 @@ function isHTMLRequest(request) {
     (request.headers.get('accept') || '').includes('text/html');
 }
 
+function isAvatarManifest(request) {
+  return request.url.endsWith('/avatars/manifest.json');
+}
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  if (isHTMLRequest(event.request)) {
-    // network-first: always try to get the latest page; fall back to cache offline
+  if (isHTMLRequest(event.request) || isAvatarManifest(event.request)) {
+    // network-first: always check for the latest list of avatars (or page);
+    // fall back to cache offline. This is what lets "drop a new PNG in
+    // /avatars/ and add it to manifest.json" show up without bumping
+    // CACHE_NAME.
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -50,7 +59,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           return response;
         })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+        .catch(() => caches.match(event.request).then((cached) => cached || (isHTMLRequest(event.request) ? caches.match('./index.html') : undefined)))
     );
     return;
   }
