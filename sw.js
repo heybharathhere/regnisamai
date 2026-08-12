@@ -1,9 +1,10 @@
-const CACHE_NAME = 'reverse-singer-v2';
+const CACHE_NAME = 'regnisamai-v3';
 const ASSETS = [
   './',
   './index.html',
   './terms.html',
   './manifest.json',
+  './pro-features.js',
   './icon-192.png',
   './icon-512.png',
   './avatar-1.png',
@@ -11,21 +12,19 @@ const ASSETS = [
   './avatar-3.png',
   './avatar-4.png',
   './avatar-5.png',
-  './avatar-6.png'
+  './avatar-6.png',
+  './avatar-7.png',
+  './avatar-8.png'
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+    caches.keys().then((keys) => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
   );
   self.clients.claim();
 });
