@@ -179,6 +179,13 @@
   .credits-line{ font-size:13px; color:var(--paper); margin-bottom:6px; }
   .credits-sub{ font-size:11px; color:var(--tape); opacity:0.55; margin-bottom:18px; }
   .about-line{ font-size:13px; color:var(--paper); margin-bottom:8px; }
+  .changelog-heading{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--tape); opacity:0.6; margin-bottom:8px; }
+  .changelog-list{ display:flex; flex-direction:column; gap:14px; }
+  .changelog-entry{ background:var(--ink); border-radius:10px; padding:12px 14px; }
+  .changelog-version{ font-size:12px; font-weight:700; color:var(--amber); }
+  .changelog-date{ font-size:10px; color:var(--tape); opacity:0.5; margin-bottom:6px; }
+  .changelog-entry ul{ margin:0; padding-left:16px; }
+  .changelog-entry li{ font-size:12px; color:var(--tape); opacity:0.85; margin-bottom:3px; line-height:1.4; }
 
   /* onboarding */
   .onboard-overlay{ position:fixed; inset:0; background:var(--ink); z-index:80; display:flex; flex-direction:column; justify-content:center; padding:28px; opacity:0; pointer-events:none; transition:opacity .3s ease; }
@@ -350,9 +357,11 @@
 
     <div class="detail-view" id="viewAbout">
       <p class="about-line"><strong>Regnisamai</strong> — Reverse Singer</p>
-      <p class="about-line">Version 1.2.8</p>
-      <p class="about-line">Last updated: 12 August 2026</p>
+      <p class="about-line" id="aboutVersionLine">Version …</p>
+      <p class="about-line" id="aboutUpdatedLine">Last updated: …</p>
       <p class="credits-sub">Record your voice, then hear it forwards and backwards. Nothing here needs a server — your name, avatar, and takes live only on this device.</p>
+      <div class="changelog-heading" style="margin-top:18px;">What's new</div>
+      <div id="changelogList" class="changelog-list"></div>
     </div>
 
     <div class="detail-view" id="viewClickSoundHost"></div>
@@ -1059,8 +1068,39 @@
     views[key].classList.add('open');
     sheetTitle.textContent = title;
     backToList.style.visibility = key === 'list' ? 'hidden' : 'visible';
+    if(key === 'about') loadVersionInfo();
   }
   backToList.addEventListener('click', ()=> showView('list','Settings'));
+
+  //
+  // ---------- version / changelog (lives in version.json, not in this file) ----------
+  //
+  let versionLoaded = false;
+  async function loadVersionInfo(){
+    if(versionLoaded) return; // fetch once per session, no need to refetch every open
+    const versionLine = document.getElementById('aboutVersionLine');
+    const updatedLine = document.getElementById('aboutUpdatedLine');
+    const listEl = document.getElementById('changelogList');
+    try{
+      const res = await fetch('version.json');
+      const data = await res.json();
+      versionLine.textContent = `Version ${data.version}`;
+      updatedLine.textContent = `Last updated: ${data.updated}`;
+      listEl.innerHTML = '';
+      (data.changelog || []).forEach(entry => {
+        const card = document.createElement('div');
+        card.className = 'changelog-entry';
+        const notes = (entry.notes || []).map(n => `<li>${n}</li>`).join('');
+        card.innerHTML = `<div class="changelog-version">v${entry.version}</div><div class="changelog-date">${entry.date}</div><ul>${notes}</ul>`;
+        listEl.appendChild(card);
+      });
+      versionLoaded = true;
+    }catch(e){
+      versionLine.textContent = 'Version unavailable';
+      updatedLine.textContent = '';
+      listEl.innerHTML = '<p class="credits-sub">Could not load version.json — check your connection and try again.</p>';
+    }
+  }
 
   document.getElementById('btnSettings').addEventListener('click', ()=>{
     settingsOverlay.classList.add('open');

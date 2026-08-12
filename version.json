@@ -1,0 +1,27 @@
+{
+  "version": "1.1.0",
+  "updated": "13 August 2026",
+  "changelog": [
+    {
+      "version": "1.1.0",
+      "date": "13 August 2026",
+      "notes": [
+        "Added a Reset app option in Settings",
+        "Avatars now load from avatars/manifest.json — add new ones without touching the app code",
+        "Fixed reels showing mismatched colors/directions during forward and reverse playback",
+        "Fixed a timer bug from tapping Rec then Stop very quickly",
+        "Replaced the browser's native confirm popup with an in-app themed dialog",
+        "Renamed Terms & Conditions to Privacy Policy and moved it inline (no more separate page)",
+        "Settings list order is now fixed — removed drag/reorder",
+        "Profile avatar now replaces the gear icon and opens Settings"
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "12 August 2026",
+      "notes": [
+        "Initial release — record, play forwards/reversed, pitch & speed control, last 5 takes, onboarding and tutorial"
+      ]
+    }
+  ]
+}

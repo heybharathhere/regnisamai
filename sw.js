@@ -3,12 +3,13 @@
 // when offline), so a fresh deploy — or a newly added avatar — is never
 // masked by a stale cache. Everything else (icons, avatar images, app
 // script): cache-first for speed offline.
-const CACHE_NAME = 'regnisamai-v5';
+const CACHE_NAME = 'regnisamai-v6';
 const ASSETS = [
   './',
   './index.html',
   './terms.html',
   './manifest.json',
+  './version.json',
   './pro-features.js',
   './icon-192.png',
   './icon-512.png',
@@ -44,14 +45,16 @@ function isAvatarManifest(request) {
   return request.url.endsWith('/avatars/manifest.json');
 }
 
+function isVersionFile(request) {
+  return request.url.endsWith('/version.json');
+}
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  if (isHTMLRequest(event.request) || isAvatarManifest(event.request)) {
-    // network-first: always check for the latest list of avatars (or page);
-    // fall back to cache offline. This is what lets "drop a new PNG in
-    // /avatars/ and add it to manifest.json" show up without bumping
-    // CACHE_NAME.
+  if (isHTMLRequest(event.request) || isAvatarManifest(event.request) || isVersionFile(event.request)) {
+    // network-first: always check for the latest page, avatar list, or
+    // version/changelog; fall back to cache offline.
     event.respondWith(
       fetch(event.request)
         .then((response) => {
