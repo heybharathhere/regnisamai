@@ -141,6 +141,8 @@
   .settings-list{ display:flex; flex-direction:column; gap:8px; }
   .settings-item{ background:var(--key-shadow); border-radius:10px; padding:12px 8px 12px 14px; display:flex; align-items:center; justify-content:space-between; }
   .settings-item-main{ display:flex; flex-direction:column; cursor:pointer; flex:1; }
+  .settings-item-main:has(.settings-avatar-thumb){ flex-direction:row; align-items:center; }
+  .settings-avatar-thumb{ width:34px; height:34px; border-radius:50%; object-fit:cover; margin-right:10px; flex-shrink:0; border:1px solid rgba(0,0,0,0.4); }
   .settings-item-label{ font-size:14px; color:var(--paper); }
   .settings-item-sub{ font-size:11px; color:var(--tape); opacity:0.5; margin-top:2px; }
   .settings-item-right{ display:flex; align-items:center; gap:6px; }
@@ -1070,7 +1072,7 @@
     backToList.style.visibility = key === 'list' ? 'hidden' : 'visible';
     if(key === 'about') loadVersionInfo();
   }
-  backToList.addEventListener('click', ()=> showView('list','Settings'));
+  backToList.addEventListener('click', ()=> { renderSettingsList(); showView('list','Settings'); });
 
   //
   // ---------- version / changelog (lives in version.json, not in this file) ----------
@@ -1104,6 +1106,7 @@
 
   document.getElementById('btnSettings').addEventListener('click', ()=>{
     settingsOverlay.classList.add('open');
+    renderSettingsList(); // rebuild so the Profile row always reflects the latest name/avatar
     showView('list','Settings');
   });
   document.getElementById('closeSettings').addEventListener('click', ()=> settingsOverlay.classList.remove('open'));
@@ -1111,6 +1114,12 @@
 
   // click sound toggle state
   clickEnabled = localStorage.getItem('regnisamai.clickEnabled') !== 'false';
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
 
   const SETTINGS_DEFS = {
     profile:  { label:'Profile', sub:'Name & avatar', type:'nav', view:'profile', title:'Profile' },
@@ -1137,7 +1146,17 @@
 
       const main = document.createElement('div');
       main.className = 'settings-item-main';
-      main.innerHTML = `<span class="settings-item-label${def.type==='action'?' destructive-label':''}">${def.label}</span>${def.sub?`<span class="settings-item-sub">${def.sub}</span>`:''}`;
+      if(key === 'profile'){
+        // dynamic row: shows the current avatar + name, not a static label
+        const storedName = (localStorage.getItem('regnisamai.name') || '').trim();
+        const avatarSrc = AVATAR_DIR + (localStorage.getItem('regnisamai.avatar') || AVATARS[0]);
+        main.innerHTML = `
+          <img class="settings-avatar-thumb" src="${avatarSrc}" alt="">
+          <span class="settings-item-label">${storedName ? escapeHtml(storedName) : 'Add your name'}</span>
+        `;
+      } else {
+        main.innerHTML = `<span class="settings-item-label${def.type==='action'?' destructive-label':''}">${def.label}</span>${def.sub?`<span class="settings-item-sub">${def.sub}</span>`:''}`;
+      }
 
       const right = document.createElement('div');
       right.className = 'settings-item-right';
