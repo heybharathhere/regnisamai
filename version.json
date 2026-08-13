@@ -1,7 +1,16 @@
 {
-  "version": "1.2.0",
+  "version": "2.0.0",
   "updated": "13 August 2026",
   "changelog": [
+    {
+      "version": "2.0.0",
+      "date": "13 August 2026",
+      "notes": [
+        "Undo toast — swiping a take away now shows a 5-second Undo option instead of deleting it instantly",
+        "Share button on each take — sends the take as a real .wav file to WhatsApp, Messages, etc. via the share sheet (falls back to a direct download if the browser doesn't support file sharing)",
+        "Daily streak counter — shows next to \"Last 5 takes\" once you've recorded on 2+ consecutive days; resets if a day is missed"
+      ]
+    },
     {
       "version": "1.2.0",
       "date": "13 August 2026",
@@ -33,4 +42,5 @@
     }
   ]
 }
+
 
